@@ -1,0 +1,48 @@
+@startuml Modelo
+!theme crt-amber
+skinparam defaultFontName monospace
+skinparam DefaultFontSize 10
+skinparam linetype ortho
+hide circle
+entity Producto {
+    * producto_id : NUMBER [PK]
+    --
+    nombre_producto : VARCHAR2
+    precio_unitario : NUMBER
+}
+entity Lote {
+    * lote_id : NUMBER [PK]
+    --
+    * producto_id : NUMBER [FK]
+    cantidad_producto : NUMBER
+    fecha_ingreso : DATE
+    fecha_vencimiento : DATE
+}
+entity Cliente {
+    * cliente_id : NUMBER [PK]
+    --
+    rut : VARCHAR2
+    nombre : VARCHAR2
+    email : VARCHAR2
+}
+entity Pedido {
+    * pedido_id : NUMBER [PK]
+    --
+    * cliente_id : NUMBER [FK]
+    fecha_pedido : DATE
+    estado : VARCHAR2
+}
+entity Detalle {
+    * detalle_id : NUMBER [PK]
+    --
+    * pedido_id : NUMBER [FK]
+    * lote_id : NUMBER [FK]
+    cantidad : NUMBEr
+    subtotal : NUMBER
+}
+
+Producto ||--|{ Lote
+Cliente ||--o{ Pedido
+Pedido ||--|{ Detalle
+Lote ||--o{ Detalle
+@enduml

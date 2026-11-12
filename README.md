@@ -1,2 +1,0 @@
-# TallerBaseDatos
-proyectoEV3
