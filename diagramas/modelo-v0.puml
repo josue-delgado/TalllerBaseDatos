@@ -1,9 +1,9 @@
 @startuml Modelo
-!theme crt-amber
 skinparam defaultFontName monospace
 skinparam DefaultFontSize 10
 skinparam linetype ortho
 hide circle
+
 entity Producto {
     * producto_id : NUMBER [PK]
     --
@@ -37,7 +37,7 @@ entity Detalle {
     --
     * pedido_id : NUMBER [FK]
     * lote_id : NUMBER [FK]
-    cantidad : NUMBEr
+    cantidad : NUMBER
     subtotal : NUMBER
 }
 
