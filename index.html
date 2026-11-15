@@ -138,6 +138,61 @@
       </section>
       <section id="subprogramas">
         <h2>Procedimientos, Funciones, Paquetes y Triggers</h2>
+        <p>
+          <strong>Procedimientos almacenados:</strong>Bloque PL/SQL compilado y
+          almacenado en la base de datos que ejecuta un conjunto de
+          instrucciones y acepta parámetros de entrada y salida sin retornar un
+          valor directo.
+        </p>
+        <p>
+          <strong>Funciones almacenadas:</strong> Subprograma de base de datos
+          similar a un procedimiento, con la obligación fundamental de retornar
+          un valor único mediante la instrucción
+        </p>
+        <p>
+          <strong>Paquetes:</strong> Objetos de base de datos que agrupan
+          lógicamente elementos relacionados (procedimientos, funciones,
+          variables y cursores), divididos en una especificación pública y un
+          cuerpo privado.
+        </p>
+        <p>
+          <strong>Triggers:</strong> Bloque de código PL/SQL que se ejecuta de
+          forma automática en la base de datos ante un evento específico de tipo
+          INSERT, UPDATE o DELETE sobre una tabla.
+        </p>
+        <h3>Aplicación de funcionalidades</h3>
+        <p>
+          <strong>Problema identificado:</strong> La lógica de negocio para
+          procesar pedidos pendientes, validar existencias y calcular costos
+          requiere estar centralizada en el servidor de base de datos para
+          garantizar la seguridad, consistencia y reutilización, evitando que
+          las operaciones críticas dependan de la aplicación cliente.
+        </p>
+        <p><strong>Solución establecida</strong></p>
+        <ol>
+          <li>
+            <strong>Procedimientos:</strong> Se utilizará para encapsular el
+            bloque principal de procesamiento de pedidos y actualización de
+            lotes, permitiendo ejecutar la transacción completa de manera
+            automatizada desde el servidor.
+          </li>
+          <li>
+            <strong>Funciones:</strong>Se utilizará para calcular de forma
+            centralizada el subtotal de cada línea de detalle y para verificar
+            el estado de los lotes, asegurando que las reglas de cálculo sean
+            consistentes en todo el sistema.
+          </li>
+          <li>
+            <strong>Paquetes:</strong> Se utilizará para modularizar y agrupar
+            lógicamente los procedimientos y funciones orientados a la gestión
+            comercial y de inventario, mejorando la organización, y el
+            mantenimiento del código.
+          </li>
+          <li>
+            <strong>Triggers:</strong> Se utilizará para automatizar la
+            inserción de subtotales en la tabla de detalles
+          </li>
+        </ol>
       </section>
       <section id="resumen"><h2>Resumen</h2></section>
       <section id="anexos">
@@ -185,82 +240,107 @@
       CONSTRAINT fk_detalle_lote FOREIGN KEY (lote_id) REFERENCES lote(lote_id)
   );
 
-  SET SERVEROUTPUT ON;
+  CREATE OR REPLACE PACKAGE BODY pkg_distribuidora AS
+      FUNCTION fn_calcular_subtotal(
+          p_lote_id   IN NUMBER,
+          p_cantidad  IN NUMBER
+      ) RETURN NUMBER IS
+          v_precio_unitario NUMBER(10, 2);
+          v_subtotal        NUMBER(12, 2);
+      BEGIN
+          SELECT p.precio_unitario 
+          INTO v_precio_unitario
+          FROM lote l
+          JOIN producto p ON l.producto_id = p.producto_id
+          WHERE l.lote_id = p_lote_id;
 
-  DECLARE
-      ex_lote_vencido EXCEPTION;
-      ex_stock_insuficiente EXCEPTION;
-      
-      -- Clientes con pedidos pendientes
-      CURSOR c_clientes IS
-          SELECT DISTINCT c.cliente_id, c.nombre
-          FROM cliente c
-          JOIN pedido p ON c.cliente_id = p.cliente_id
-          WHERE p.estado = 'PENDIENTE';
+          v_subtotal := v_precio_unitario * p_cantidad;
+          RETURN v_subtotal;
+      END fn_calcular_subtotal;
 
-      -- Pedidos de un cliente específico
-      CURSOR c_pedidos (p_cliente_id NUMBER) IS
-          SELECT pedido_id
-          FROM pedido
-          WHERE cliente_id = p_cliente_id
-            AND estado = 'PENDIENTE';
+      PROCEDURE pr_procesar_pedidos IS
+          ex_lote_vencido EXCEPTION;
+          ex_stock_insuficiente EXCEPTION;
+          
+          -- Clientes con pedidos pendientes
+          CURSOR c_clientes IS
+              SELECT DISTINCT c.cliente_id, c.nombre
+              FROM cliente c
+              JOIN pedido p ON c.cliente_id = p.cliente_id
+              WHERE p.estado = 'PENDIENTE';
 
-      -- Detalles y lotes asociados a un pedido
-      CURSOR c_detalles (p_pedido_id NUMBER) IS
-          SELECT d.detalle_id, d.lote_id, d.cantidad, l.fecha_vencimiento, l.cantidad_producto
-          FROM detalle d
-          JOIN lote l ON d.lote_id = l.lote_id
-          WHERE d.pedido_id = p_pedido_id;
+          -- Pedidos de un cliente específico
+          CURSOR c_pedidos (p_cliente_id NUMBER) IS
+              SELECT pedido_id
+              FROM pedido
+              WHERE cliente_id = p_cliente_id
+              AND estado = 'PENDIENTE';
 
-  BEGIN
-      -- Recorre clientes obtenidos 
-      FOR reg_cliente IN c_clientes LOOP
-          DBMS_OUTPUT.PUT_LINE('Cliente: ' || reg_cliente.nombre);
-          -- Recorre pedidos del cliente 
-          FOR reg_pedido IN c_pedidos(reg_cliente.cliente_id) LOOP
-              DBMS_OUTPUT.PUT_LINE('  -> Pedido ID: ' || reg_pedido.pedido_id);
-              -- Recorre detalles y verifica lotes 
-              FOR reg_det IN c_detalles(reg_pedido.pedido_id) LOOP
-                  -- Evaluar fecha de vencimiento
-                  IF reg_det.fecha_vencimiento < SYSDATE THEN
-                      RAISE ex_lote_vencido;
-                  END IF;
-                  
-                  -- Evaluar si la cantidad en stock es menor a la solicitada
-                  IF reg_det.cantidad_producto < reg_det.cantidad THEN
-                      RAISE ex_stock_insuficiente;
-                  END IF;
-                  
-                  -- Descontar cantidad del producto en el lote
-                  UPDATE lote
-                  SET cantidad_producto = cantidad_producto - reg_det.cantidad
-                  WHERE lote_id = reg_det.lote_id;
+          -- Detalles y lotes asociados a un pedido
+          CURSOR c_detalles (p_pedido_id NUMBER) IS
+              SELECT d.detalle_id, d.lote_id, d.cantidad, l.fecha_vencimiento, l.cantidad_producto
+              FROM detalle d
+              JOIN lote l ON d.lote_id = l.lote_id
+              WHERE d.pedido_id = p_pedido_id;
+
+      BEGIN
+          -- Recorre clientes obtenidos 
+          FOR reg_cliente IN c_clientes LOOP
+              DBMS_OUTPUT.PUT_LINE('Cliente: ' || reg_cliente.nombre);
+              -- Recorre pedidos del cliente 
+              FOR reg_pedido IN c_pedidos(reg_cliente.cliente_id) LOOP
+                  DBMS_OUTPUT.PUT_LINE('  -> Pedido ID: ' || reg_pedido.pedido_id);
+                  -- Recorre detalles y verifica lotes 
+                  FOR reg_det IN c_detalles(reg_pedido.pedido_id) LOOP
+                      -- Evaluar fecha de vencimiento
+                      IF reg_det.fecha_vencimiento < SYSDATE THEN
+                          RAISE ex_lote_vencido;
+                      END IF;
+                      
+                      -- Evaluar si la cantidad en stock es menor a la solicitada
+                      IF reg_det.cantidad_producto < reg_det.cantidad THEN
+                          RAISE ex_stock_insuficiente;
+                      END IF;
+                      
+                      -- Descontar cantidad del producto en el lote
+                      UPDATE lote
+                      SET cantidad_producto = cantidad_producto - reg_det.cantidad
+                      WHERE lote_id = reg_det.lote_id;
+                  END LOOP;
+
+                  UPDATE pedido
+                  SET estado = 'PROCESADO'
+                  WHERE pedido_id = reg_pedido.pedido_id;
+
               END LOOP;
-
-              UPDATE pedido
-              SET estado = 'PROCESADO'
-              WHERE pedido_id = reg_pedido.pedido_id;
-
           END LOOP;
-      END LOOP;
 
-      COMMIT;
-      DBMS_OUTPUT.PUT_LINE('Proceso finalizado exitosamente.');
+          COMMIT;
+          DBMS_OUTPUT.PUT_LINE('Proceso finalizado exitosamente.');
 
-  EXCEPTION
-      WHEN ex_lote_vencido THEN
-          ROLLBACK;
-          DBMS_OUTPUT.PUT_LINE('Se intentó procesar un lote con fecha de vencimiento expirada.');
-          
-      WHEN ex_stock_insuficiente THEN
-          ROLLBACK;
-          DBMS_OUTPUT.PUT_LINE('Se intentó procesar un pedido con stock insuficiente en el lote.');
-          
-      WHEN OTHERS THEN
-          ROLLBACK;
-          DBMS_OUTPUT.PUT_LINE('Error no controlado: ' || SQLERRM);
+      EXCEPTION
+          WHEN ex_lote_vencido THEN
+              ROLLBACK;
+              DBMS_OUTPUT.PUT_LINE('Se intentó procesar un lote con fecha de vencimiento expirada.');
+              
+          WHEN ex_stock_insuficiente THEN
+              ROLLBACK;
+              DBMS_OUTPUT.PUT_LINE('Se intentó procesar un pedido con stock insuficiente en el lote.');
+              
+          WHEN OTHERS THEN
+              ROLLBACK;
+              DBMS_OUTPUT.PUT_LINE('Error no controlado: ' || SQLERRM);
+      END pr_procesar_pedidos;
+  END pkg_distribuidora;
+  /
+
+  CREATE OR REPLACE TRIGGER trg_bi_detalle_subtotal
+  BEFORE INSERT ON detalle
+  FOR EACH ROW
+  BEGIN
+      :NEW.subtotal := pkg_distribuidora.fn_calcular_subtotal(:NEW.lote_id, :NEW.cantidad);
   END;
-  / 
+  /
           </code>
         </pre>
         <h3>Diagramas y Modelos</h3>
