@@ -2,24 +2,25 @@ SET SERVEROUTPUT ON;
 
 DECLARE
     ex_lote_vencido EXCEPTION;
+    ex_stock_insuficiente EXCEPTION;
     
-    -- 1. Clientes con pedidos pendientes
+    -- Clientes con pedidos pendientes
     CURSOR c_clientes IS
         SELECT DISTINCT c.cliente_id, c.nombre
         FROM cliente c
         JOIN pedido p ON c.cliente_id = p.cliente_id
         WHERE p.estado = 'PENDIENTE';
 
-    -- 2. Pedidos de un cliente específico
+    -- Pedidos de un cliente específico
     CURSOR c_pedidos (p_cliente_id NUMBER) IS
         SELECT pedido_id
         FROM pedido
         WHERE cliente_id = p_cliente_id
           AND estado = 'PENDIENTE';
 
-    -- 3. Detalles y lotes asociados a un pedido
+    -- Detalles y lotes asociados a un pedido
     CURSOR c_detalles (p_pedido_id NUMBER) IS
-        SELECT d.detalle_id, d.lote_id, l.fecha_vencimiento
+        SELECT d.detalle_id, d.lote_id, d.cantidad, l.fecha_vencimiento, l.cantidad_producto
         FROM detalle d
         JOIN lote l ON d.lote_id = l.lote_id
         WHERE d.pedido_id = p_pedido_id;
@@ -37,15 +38,39 @@ BEGIN
                 IF reg_det.fecha_vencimiento < SYSDATE THEN
                     RAISE ex_lote_vencido;
                 END IF;
+                
+                -- Evaluar si la cantidad en stock es menor a la solicitada
+                IF reg_det.cantidad_producto < reg_det.cantidad THEN
+                    RAISE ex_stock_insuficiente;
+                END IF;
+                
+                -- Descontar cantidad del producto en el lote
+                UPDATE lote
+                SET cantidad_producto = cantidad_producto - reg_det.cantidad
+                WHERE lote_id = reg_det.lote_id;
             END LOOP;
+
+            UPDATE pedido
+            SET estado = 'PROCESADO'
+            WHERE pedido_id = reg_pedido.pedido_id;
+
         END LOOP;
     END LOOP;
 
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('Proceso finalizado exitosamente.');
+
 EXCEPTION
     WHEN ex_lote_vencido THEN
+        ROLLBACK;
         DBMS_OUTPUT.PUT_LINE('Se intentó procesar un lote con fecha de vencimiento expirada.');
         
+    WHEN ex_stock_insuficiente THEN
+        ROLLBACK;
+        DBMS_OUTPUT.PUT_LINE('Se intentó procesar un pedido con stock insuficiente en el lote.');
+        
     WHEN OTHERS THEN
+        ROLLBACK;
         DBMS_OUTPUT.PUT_LINE('Error no controlado: ' || SQLERRM);
 END;
 /
