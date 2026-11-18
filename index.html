@@ -39,11 +39,75 @@
       <section id="introduccion">
         <h2>Introducción</h2>
         <h3>Descripción del proyecto</h3>
+        <p>
+          El presente proyecto desarrolla una solución integral de procesamiento
+          de datos y automatización de procesos de negocio enfocada en el
+          control de pedidos, auditoría de inventario por lotes de producción y
+          facturación de clientes. Mediante el uso del lenguaje PL/SQL en Oracle
+          Database, se construyeron estructuras de procedimientos avanzadas
+          diseñadas para monitorear el ciclo de vida de los productos (fechas de
+          vencimiento) y reaccionar de manera preventiva ante inconsistencias de
+          datos o incumplimientos de reglas de negocio.
+        </p>
         <h3>Alcance</h3>
+        <p>
+          El alcance del proyecto abarca desde el modelado relacional de datos
+          hasta el desarrollo de los procedimientos y la integración con
+          tecnologías de persistencia NoSQL. Los componentes del negocio
+          directamente beneficiados son:
+        </p>
+        <ul>
+          <li>
+            <strong>Gestión de Ventas:</strong> Consolidación de pedidos por
+            cliente y cálculo acumulado de facturación.
+          </li>
+          <li>
+            <strong>Control de Inventario y Calidad:</strong> Control riguroso
+            de inventario mediante la trazabilidad de lotes y supervisión de
+            vencimientos críticos.
+          </li>
+          <li>
+            <strong>Integridad y Auditoría:</strong> Validación de reglas
+            operativas y prevención de errores mediante el control estricto de
+            excepciones predefinidas y personalizadas.
+          </li>
+        </ul>
         <h3>Tecnologías utilizadas</h3>
+        <ul>
+          <li>
+            <strong>Oracle database / PL/SQL:</strong> Motor relacional para el
+            almacenamiento ACID, ejecución de bloques PL/SQL, cursores
+            explícitos complejos y gestión de excepciones.
+          </li>
+          <li>
+            <strong>MongoDB:</strong> Base de datos NoSQL orientada a documentos
+            para la consulta flexible y almacenamiento desnormalizado de
+            catálogos e historial de pedidos.
+          </li>
+        </ul>
       </section>
       <section id="datos-compuestos">
-        <h2>Tipos de datos compuestos</h2>
+        <h2>Tipos de datos compuestos: RECORD Y VARRAY</h2>
+        <p>
+          En el desarrollo de la solución en PL/SQL, los tipos de datos
+          compuestos permiten agrupar información heterogénea y colecciones
+          homogéneas en memoria ram antes de interactuar con el disco:
+        </p>
+        <ul>
+          <li>
+            <strong>RECORD:</strong> Permite definir una estructura estructurada
+            personalizada (similar a una fila de tabla o un objeto) que agrupa
+            campos de diferentes tipos de datos. Se utiliza para procesar
+            registros de auditoría o resúmenes de facturación en una sola
+            variable.
+          </li>
+          <li>
+            <strong>VARRAY:</strong> Funciona como un arreglo de tamaño fijo con
+            un límite máximo predefinido. Se utiliza en el proyecto para
+            almacenar listas contiguas de identificadores de lotes o códigos de
+            alerta de vencimiento procesados dentro de una misma sesión.
+          </li>
+        </ul>
       </section>
       <section id="cursores">
         <h2>Desarrollo de Bloques PL/SQL con Cursores Explícitos Complejos</h2>
